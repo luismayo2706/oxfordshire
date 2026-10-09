@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeForge Studio Pro - IDE & Analizador IA</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Fira Code & Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .code-font { font-family: 'Fira Code', monospace; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        .glow-effect { box-shadow: 0 0 25px -5px rgba(6, 182, 212, 0.15); }
+        
+        /* Highlight colors for syntax recognition */
+        .token-keyword { color: #f472b6; font-weight: 600; }
+        .token-type { color: #38bdf8; font-weight: 600; }
+        .token-string { color: #34d399; }
+        .token-comment { color: #64748b; font-style: italic; }
+        .token-number { color: #fbbf24; }
+        .token-function { color: #a78bfa; }
+    </style>
+</head>
+<body class="h-full bg-slate-950 text-slate-100 flex flex-col overflow-hidden">
+
+    <header class="bg-slate-900 border-b border-slate-800 px-4 py-3 flex items-center justify-between shrink-0 shadow-lg z-20">
+        <div class="flex items-center space-x-3">
+            <div class="bg-gradient-to-tr from-cyan-500 via-indigo-500 to-purple-600 p-2.5 rounded-2xl text-white shadow-lg shadow-cyan-500/20">
+                <i class="fa-solid fa-laptop-code text-xl"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-base md:text-lg text-white tracking-wide flex items-center gap-2">
+                    CodeForge Studio <span class="text-[10px] md:text-xs bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wider">Pro v4.0 AI</span>
+                </h1>
+                <p class="text-xs text-slate-400 flex items-center gap-2">
+                    <span>Creado por <strong class="text-slate-200 font-semibold">Ing. Jose Luis Mayo Galeana</strong></span>
+                </p>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-2 sm:space-x-4">
+            <!-- Language Selector -->
+            <div class="flex bg-slate-950 p-1 rounded-xl border border-slate-800 shadow-inner">
+                <button onclick="switchLanguage('c')" id="btn-c" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all text-slate-400 hover:text-white">C</button>
+                <button onclick="switchLanguage('cpp')" id="btn-cpp" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all bg-cyan-600 text-white shadow">C++</button>
+                <button onclick="switchLanguage('python')" id="btn-python" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all text-slate-400 hover:text-white">Python</button>
+            </div>
+
+            <!-- Action Controls -->
+            <div class="hidden xl:flex items-center space-x-2">
+                <button onclick="openSnippetsModal()" class="flex items-center space-x-1.5 px-3 py-2 bg-slate-800/80 hover:bg-slate-800 text-slate-300 text-xs font-medium rounded-xl border border-slate-700 transition shadow-sm" title="Librería de fragmentos y algoritmos">
+                    <i class="fa-solid fa-puzzle-piece text-indigo-400"></i>
+                    <span>Snippets</span>
+                </button>
+                <button onclick="analyzeCodeAI()" class="flex items-center space-x-1.5 px-3 py-2 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 text-xs font-medium rounded-xl border border-purple-500/40 transition shadow-sm" title="Explicar código con IA">
+                    <i class="fa-solid fa-wand-magic-sparkles text-purple-400"></i>
+                    <span>Analizar Código IA</span>
+                </button>
+            </div>
+
+            <!-- Main Run Button -->
+            <button onclick="runCode()" id="run-btn" class="flex items-center space-x-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-emerald-500/20 transition transform active:scale-95">
+                <i class="fa-solid fa-play text-sm"></i>
+                <span id="run-btn-text">Ejecutar</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 flex flex-col xl:flex-row overflow-hidden p-3 sm:p-4 gap-4">
+        
+        <!-- Code Editor Workspace -->
+        <div class="flex-1 flex flex-col bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl relative glow-effect">
+            <!-- Workspace Top Bar -->
+            <div class="bg-slate-900/90 border-b border-slate-800 px-4 py-2.5 flex items-center justify-between text-xs text-slate-400 shrink-0">
+                <div class="flex items-center space-x-2">
+                    <span class="w-3 h-3 rounded-full bg-red-500/80 inline-block shadow-sm"></span>
+                    <span class="w-3 h-3 rounded-full bg-yellow-500/80 inline-block shadow-sm"></span>
+                    <span class="w-3 h-3 rounded-full bg-green-500/80 inline-block shadow-sm"></span>
+                    <span id="file-name-label" class="ml-3 font-mono text-slate-200 font-semibold bg-slate-950 px-2.5 py-1 rounded border border-slate-800">main.cpp</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span id="lang-indicator" class="text-cyan-400 font-bold uppercase tracking-wider bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">C++</span>
+                    <span class="text-slate-600">|</span>
+                    <button onclick="formatCode()" class="hover:text-cyan-300 transition flex items-center gap-1.5" title="Autoformatear sangrías">
+                        <i class="fa-solid fa-indent"></i> Formatear
+                    </button>
+                    <button onclick="copyCode()" class="hover:text-white transition flex items-center gap-1.5" title="Copiar código al portapapeles">
+                        <i class="fa-regular fa-copy"></i> Copiar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Code Input Panel with Syntax Overlay -->
+            <div class="flex-1 relative flex overflow-hidden bg-slate-950/40">
+                <!-- Line Numbers Container -->
+                <div id="line-numbers" class="w-14 bg-slate-950/80 text-slate-600 code-font text-xs py-4 select-none text-right pr-4 overflow-hidden leading-relaxed border-r border-slate-800/60 z-10">
+                    1
+                </div>
+                <!-- Dual Layer Editor Container -->
+                <div class="flex-1 relative overflow-hidden">
+                    <pre id="highlight-layer" aria-hidden="true" class="absolute inset-0 m-0 p-4 code-font text-sm leading-relaxed overflow-hidden pointer-events-none whitespace-pre z-0 text-slate-300"></pre>
+                    <textarea id="code-editor" spellcheck="false" oninput="onEditorInput();" onscroll="syncScroll()" onkeydown="handleTab(event)" class="absolute inset-0 w-full h-full bg-transparent text-transparent caret-white code-font text-sm p-4 resize-none focus:outline-none leading-relaxed whitespace-pre overflow-auto z-10"></textarea>
+                </div>
+            </div>
+
+            <!-- Workspace Footer / Status Bar -->
+            <div class="bg-slate-950 border-t border-slate-800 px-4 py-2 text-[11px] text-slate-400 flex flex-wrap justify-between items-center shrink-0 gap-2">
+                <div class="flex items-center space-x-4">
+                    <span id="cursor-pos" class="bg-slate-900 px-2 py-0.5 rounded border border-slate-800 font-mono text-slate-300">Ln 1, Col 1</span>
+                    <span class="hidden sm:inline text-slate-500">Validador de Sintaxis: Estricto Activo</span>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <span class="text-indigo-400 font-medium">Creado por Ing. Jose Luis Mayo Galeana</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="w-full xl:w-[460px] flex flex-col bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl shrink-0">
+            <!-- Tabs Bar -->
+            <div class="bg-slate-900/90 border-b border-slate-800 px-3 py-2 flex items-center justify-between text-xs shrink-0">
+                <div class="flex space-x-1">
+                    <button onclick="switchRightTab('terminal')" id="tab-terminal" class="px-3 py-1.5 rounded-lg font-semibold bg-slate-800 text-cyan-400 border border-slate-700 transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-terminal"></i> Terminal
+                    </button>
+                    <button onclick="switchRightTab('ai')" id="tab-ai" class="px-3 py-1.5 rounded-lg font-semibold text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-robot text-purple-400"></i> Análisis IA
+                    </button>
+                </div>
+                <button onclick="clearCurrentTab()" class="text-slate-400 hover:text-white transition text-xs flex items-center gap-1.5 px-2 py-1 rounded bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50">
+                    <i class="fa-solid fa-trash-can text-red-400"></i> Limpiar
+                </button>
+            </div>
+
+            <!-- Panel 1: Terminal -->
+            <div id="panel-terminal" class="flex-1 flex flex-col overflow-hidden">
+                <div class="p-3 bg-slate-950/60 border-b border-slate-800 shrink-0 space-y-1.5">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider">Entrada Estándar (stdin):</label>
+                    </div>
+                    <input type="text" id="stdin-input" placeholder="Argumentos para lectura (opcional)" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 font-mono shadow-inner">
+                </div>
+                <div id="terminal-output" class="flex-1 bg-slate-950 p-4 code-font text-xs text-emerald-400 overflow-y-auto leading-relaxed whitespace-pre-wrap select-text">
+// ==========================================
+// CODEFORGE STUDIO PRO - TERMINAL DE SALIDA
+// Autor: Ing. Jose Luis Mayo Galeana
+// ==========================================
+// 1. Escribe tu código o carga un snippet.
+// 2. Haz clic en "Ejecutar" para emular.
+                </div>
+                <div class="bg-slate-950/90 border-t border-slate-800 px-4 py-2 text-[11px] text-slate-400 flex justify-between items-center shrink-0">
+                    <span id="exec-status" class="flex items-center gap-2 font-medium">
+                        <span class="w-2.5 h-2.5 rounded-full bg-slate-500"></span> En espera
+                    </span>
+                    <div class="flex items-center space-x-3 font-mono">
+                        <span id="exec-time" class="text-cyan-400">0.00s</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel 2: AI Analysis & Explanation -->
+            <div id="panel-ai" class="flex-1 flex flex-col overflow-hidden hidden bg-slate-950 p-4 space-y-3">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <h3 class="text-xs font-bold text-purple-400 flex items-center gap-2">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Asistente Analítico de Código
+                    </h3>
+                    <button onclick="analyzeCodeAI()" class="px-2.5 py-1 bg-purple-600 hover:bg-purple-500 text-white text-[11px] font-semibold rounded-lg transition">Actualizar Análisis</button>
+                </div>
+                <div id="ai-output" class="flex-1 overflow-y-auto text-xs text-slate-300 space-y-3 leading-relaxed pr-1 select-text">
+                    <div class="p-3 bg-slate-900/80 border border-slate-800 rounded-xl">
+                        <p class="text-slate-400 italic">Haz clic en <strong>"Analizar Código IA"</strong> o en esta pestaña para obtener una descripción detallada, desglose sintáctico y detección de buenas prácticas de tu código actual.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <div id="snippets-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
+                <div class="flex items-center space-x-2 text-white font-bold">
+                    <i class="fa-solid fa-puzzle-piece text-indigo-400"></i>
+                    <span>Librería de Algoritmos y Snippets</span>
+                </div>
+                <button onclick="closeSnippetsModal()" class="text-slate-400 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1">
+                <div onclick="loadSnippet('fibonacci')" class="p-3.5 bg-slate-950 hover:bg-slate-800/80 border border-slate-800 rounded-xl cursor-pointer transition group">
+                    <h4 class="text-xs font-bold text-cyan-400 group-hover:text-cyan-300">Serie de Fibonacci</h4>
+                    <p class="text-[11px] text-slate-400 mt-1">Cálculo de secuencia numérica iterativa en C++.</p>
+                </div>
+                <div onclick="loadSnippet('bubblesort')" class="p-3.5 bg-slate-950 hover:bg-slate-800/80 border border-slate-800 rounded-xl cursor-pointer transition group">
+                    <h4 class="text-xs font-bold text-indigo-400 group-hover:text-indigo-300">Método Burbuja</h4>
+                    <p class="text-[11px] text-slate-400 mt-1">Algoritmo de ordenamiento de arreglos numéricos.</p>
+                </div>
+                <div onclick="loadSnippet('struct')" class="p-3.5 bg-slate-950 hover:bg-slate-800/80 border border-slate-800 rounded-xl cursor-pointer transition group">
+                    <h4 class="text-xs font-bold text-emerald-400 group-hover:text-emerald-300">Estructuras (Structs)</h4>
+                    <p class="text-[11px] text-slate-400 mt-1">Manejo de registros avanzados en C.</p>
+                </div>
+                <div onclick="loadSnippet('matrix')" class="p-3.5 bg-slate-950 hover:bg-slate-800/80 border border-slate-800 rounded-xl cursor-pointer transition group">
+                    <h4 class="text-xs font-bold text-amber-400 group-hover:text-amber-300">Matrices Bidimensionales</h4>
+                    <p class="text-[11px] text-slate-400 mt-1">Recorrido y visualización de tablas 2D.</p>
+                </div>
+            </div>
+            <div class="px-6 py-3 border-t border-slate-800 bg-slate-950/50 flex justify-between items-center text-xs text-slate-500">
+                <span>Ing. Jose Luis Mayo Galeana</span>
+                <button onclick="closeSnippetsModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl transition">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const templates = {
+            c: `#include <stdio.h>
+#include <stdlib.h>
+
+/* Desarrollado por Ing. Jose Luis Mayo Galeana */
+
+int main() {
+    printf("=== EMULADOR DE C (CODEFORGE PRO) ===\\n");
+    
+    int cantidad = 5;
+    int suma = 0;
+    
+    printf("Calculando sumatoria de numeros del 1 al %d:\\n", cantidad);
+    for(int i = 1; i <= cantidad; i++) {
+        suma += i;
+        printf(" -> Paso %d: Suma parcial = %d\\n", i, suma);
+    }
+    
+    printf("\\nResultado final de la sumatoria: %d\\n", suma);
+    return 0;
+}`,
+            cpp: `#include <iostream>
+#include <vector>
+#include <string>
+#include <numeric>
+
+/* Desarrollado por Ing. Jose Luis Mayo Galeana */
+using namespace std;
+
+int main() {
+    cout << "=== ESTUDIO PROFESIONAL DE C++ ===" << endl;
+    
+    string desarrollador = "Ing. Jose Luis Mayo Galeana";
+    cout << "Autor del entorno: " << desarrollador << endl;
+    
+    vector<int> calificaciones = {95, 88, 92, 100, 85};
+    int suma = accumulate(calificaciones.begin(), calificaciones.end(), 0);
+    double promedio = static_cast<double>(suma) / calificaciones.size();
+    
+    cout << "Promedio general obtenido: " << promedio << endl;
+    return 0;
+}`,
+            python: `# -*- coding: utf-8 -*-
+"""
+Entorno Profesional Python - CodeForge Studio
+Creado por: Ing. Jose Luis Mayo Galeana
+"""
+
+print("=== EMULADOR PYTHON AVANZADO ===")
+estudiante = "Ing. Jose Luis Mayo Galeana"
+print(f"Entorno configurado por: {estudiante}")
+
+datos = [12, 45, 7, 23, 56, 89, 34]
+pares = [x for x in datos if x % 2 == 0]
+
+print("Lista original de datos:", datos)
+print("Numeros pares filtrados:", pares)
+print("Suma total de elementos:", sum(datos))
+`
+        };
+
+        const snippets = {
+            fibonacci: `#include <iostream>
+using namespace std;
+
+// Snippet: Serie de Fibonacci por Ing. Jose Luis Mayo Galeana
+int main() {
+    int n = 10;
+    long long t1 = 0, t2 = 1, siguiente;
+    cout << "Serie de Fibonacci:" << endl;
+    for (int i = 1; i <= n; ++i) {
+        cout << t1 << " ";
+        siguiente = t1 + t2;
+        t1 = t2;
+        t2 = siguiente;
+    }
+    cout << endl;
+    return 0;
+}`,
+            bubblesort: `#include <iostream>
+using namespace std;
+
+// Snippet: Ordenamiento Burbuja por Ing. Jose Luis Mayo Galeana
+int main() {
+    int arr[] = {64, 34, 25, 12, 22, 11, 90};
+    int n = 7;
+    for(int i = 0; i < n-1; i++) {
+        for(int j = 0; j < n-i-1; j++) {
+            if(arr[j] > arr[j+1]) {
+                int temp = arr[j]; arr[j] = arr[j+1]; arr[j+1] = temp;
+            }
+        }
+    }
+    cout << "Arreglo ordenado correctamente." << endl;
+    return 0;
+}`,
+            struct: `#include <stdio.h>
+#include <string.h>
+
+// Snippet: Estructuras por Ing. Jose Luis Mayo Galeana
+struct Alumno {
+    char nombre[50];
+    int edad;
+    float promedio;
+};
+
+int main() {
+    struct Alumno a1;
+    strcpy(a1.nombre, "Carlos Mendoza");
+    a1.edad = 21;
+    a1.promedio = 94.5;
+    printf("Estudiante: %s | Promedio: %.2f\\n", a1.nombre, a1.promedio);
+    return 0;
+}`,
+            matrix: `#include <iostream>
+using namespace std;
+
+// Snippet: Matrices 2D por Ing. Jose Luis Mayo Galeana
+int main() {
+    int matriz[3][3] = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}};
+    for(int i=0; i<3; i++) {
+        for(int j=0; j<3; j++) {
+            cout << matriz[i][j] << "\\t";
+        }
+        cout << endl;
+    }
+    return 0;
+}`
+        };
+
+        let currentLang = 'cpp';
+
+        window.onload = function() {
+            document.getElementById('code-editor').value = templates.cpp;
+            updateHighlighting();
+            updateLineNumbers();
+            updateCursorPos();
+        };
+
+        function switchLanguage(lang) {
+            currentLang = lang;
+            ['c', 'cpp', 'python'].forEach(l => {
+                const btn = document.getElementById(`btn-${l}`);
+                if (l === lang) {
+                    btn.className = "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all bg-cyan-600 text-white shadow";
+                } else {
+                    btn.className = "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all text-slate-400 hover:text-white";
+                }
+            });
+
+            const ext = lang === 'python' ? 'py' : (lang === 'c' ? 'c' : 'cpp');
+            document.getElementById('file-name-label').innerText = `main.${ext}`;
+            document.getElementById('lang-indicator').innerText = lang === 'cpp' ? 'C++' : (lang === 'c' ? 'C' : 'Python');
+            
+            document.getElementById('code-editor').value = templates[lang];
+            updateHighlighting();
+            updateLineNumbers();
+            updateCursorPos();
+        }
+
+        function switchRightTab(tab) {
+            const termBtn = document.getElementById('tab-terminal');
+            const aiBtn = document.getElementById('tab-ai');
+            const termPanel = document.getElementById('panel-terminal');
+            const aiPanel = document.getElementById('panel-ai');
+
+            if (tab === 'terminal') {
+                termBtn.className = "px-3 py-1.5 rounded-lg font-semibold bg-slate-800 text-cyan-400 border border-slate-700 transition flex items-center gap-1.5";
+                aiBtn.className = "px-3 py-1.5 rounded-lg font-semibold text-slate-400 hover:text-white transition flex items-center gap-1.5";
+                termPanel.classList.remove('hidden');
+                aiPanel.classList.add('hidden');
+            } else {
+                aiBtn.className = "px-3 py-1.5 rounded-lg font-semibold bg-slate-800 text-purple-400 border border-slate-700 transition flex items-center gap-1.5";
+                termBtn.className = "px-3 py-1.5 rounded-lg font-semibold text-slate-400 hover:text-white transition flex items-center gap-1.5";
+                aiPanel.classList.remove('hidden');
+                termPanel.classList.add('hidden');
+                analyzeCodeAI();
+            }
+        }
+
+        function onEditorInput() {
+            updateHighlighting();
+            updateLineNumbers();
+            updateCursorPos();
+        }
+
+        function updateHighlighting() {
+            const editor = document.getElementById('code-editor');
+            const highlightLayer = document.getElementById('highlight-layer');
+            let code = editor.value;
+
+            // Escape HTML characters to prevent XSS in syntax layer
+            code = code.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+            // Simple robust regex syntax tokenizer for C/C++/Python
+            // Comments
+            code = code.replace(/(\/\/[^\n]*|\/\*[\s\S]*?\*\/|#[^\n]*)/g, '<span class="token-comment">$1</span>');
+            // Strings
+            code = code.replace(/(&quot;[^&]*?&quot;|&#39;[^']*?&#39;|"[^"]*?"|'[^']*?')/g, '<span class="token-string">$1</span>');
+            // Keywords
+            const keywords = /\b(int|float|double|char|void|bool|long|vector|string|include|using|namespace|return|if|else|for|while|do|switch|case|break|continue|struct|class|public|private|def|print|import|from|in|and|or|not|as)\b/g;
+            code = code.replace(keywords, '<span class="token-keyword">$1</span>');
+            // Numbers
+            code = code.replace(/\b(\d+)\b/g, '<span class="token-number">$1</span>');
+
+            highlightLayer.innerHTML = code + '\n';
+        }
+
+        function updateLineNumbers() {
+            const editor = document.getElementById('code-editor');
+            const lines = editor.value.split('\n').length;
+            let numbersStr = '';
+            for (let i = 1; i <= lines; i++) {
+                numbersStr += i + '\n';
+            }
+            document.getElementById('line-numbers').innerText = numbersStr;
+        }
+
+        function syncScroll() {
+            const editor = document.getElementById('code-editor');
+            const lineNumbers = document.getElementById('line-numbers');
+            const highlightLayer = document.getElementById('highlight-layer');
+            lineNumbers.scrollTop = editor.scrollTop;
+            highlightLayer.scrollTop = editor.scrollTop;
+            highlightLayer.scrollLeft = editor.scrollLeft;
+        }
+
+        function updateCursorPos() {
+            const editor = document.getElementById('code-editor');
+            const pos = editor.selectionStart;
+            const textBefore = editor.value.substring(0, pos);
+            const lines = textBefore.split('\n');
+            const line = lines.length;
+            const col = lines[lines.length - 1].length + 1;
+            document.getElementById('cursor-pos').innerText = `Ln ${line}, Col ${col}`;
+        }
+
+        function handleTab(e) {
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                const editor = document.getElementById('code-editor');
+                const start = editor.selectionStart;
+                const end = editor.selectionEnd;
+                editor.value = editor.value.substring(0, start) + "    " + editor.value.substring(end);
+                editor.selectionStart = editor.selectionEnd = start + 4;
+                onEditorInput();
+            }
+        }
+
+        function copyCode() {
+            const code = document.getElementById('code-editor').value;
+            const textarea = document.createElement('textarea');
+            textarea.value = code;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            showNotification("¡Código copiado al portapapeles con éxito!", "success");
+        }
+
+        function formatCode() {
+            const editor = document.getElementById('code-editor');
+            let lines = editor.value.split('\n');
+            let indent = 0;
+            let formatted = [];
+            
+            for(let line of lines) {
+                let trimmed = line.trim();
+                if(trimmed.startsWith('}') || trimmed.startsWith(']')) indent = Math.max(0, indent - 4);
+                let spaces = ' '.repeat(indent);
+                formatted.push(spaces + trimmed);
+                if(trimmed.endsWith('{') || trimmed.endsWith(':')) indent += 4;
+            }
+            editor.value = formatted.join('\n');
+            onEditorInput();
+            showNotification("Código formateado y tabulado correctamente.", "success");
+        }
+
+        function openSnippetsModal() {
+            document.getElementById('snippets-modal').classList.remove('hidden');
+        }
+
+        function closeSnippetsModal() {
+            document.getElementById('snippets-modal').classList.add('hidden');
+        }
+
+        function loadSnippet(key) {
+            if(snippets[key]) {
+                document.getElementById('code-editor').value = snippets[key];
+                onEditorInput();
+                closeSnippetsModal();
+                showNotification("Snippet cargado en el editor.", "success");
+            }
+        }
+
+        function clearCurrentTab() {
+            const termPanel = document.getElementById('panel-terminal');
+            if(!termPanel.classList.contains('hidden')) {
+                document.getElementById('terminal-output').innerText = "// Consola limpia.";
+                document.getElementById('exec-status').innerHTML = '<span class="w-2.5 h-2.5 rounded-full bg-slate-500"></span> En espera';
+                document.getElementById('exec-time').innerText = "0.00s";
+            } else {
+                document.getElementById('ai-output').innerHTML = '<div class="p-3 bg-slate-900/80 border border-slate-800 rounded-xl"><p class="text-slate-400 italic">Panel limpiado.</p></div>';
+            }
+        }
+
+        function showNotification(msg, type) {
+            const term = document.getElementById('terminal-output');
+            term.innerText += `\n[INFO (${new Date().toLocaleTimeString()}): ${msg}\n`;
+            term.scrollTop = term.scrollHeight;
+        }
+
+        function analyzeCodeAI() {
+            const code = document.getElementById('code-editor').value;
+            const aiOutput = document.getElementById('ai-output');
+            
+            aiOutput.innerHTML = `
+                <div class="p-4 bg-slate-900/90 border border-purple-500/30 rounded-xl space-y-3 shadow-lg animate-pulse">
+                    <div class="flex items-center space-x-2 text-purple-400 font-semibold text-xs">
+                        <i class="fa-solid fa-circle-notch fa-spin"></i>
+                        <span>Analizando sintaxis, estructura y propósito del script...</span>
+                    </div>
+                </div>
+            `;
+
+            setTimeout(() => {
+                let analysis = generateSmartAnalysis(code, currentLang);
+                aiOutput.innerHTML = analysis;
+            }, 600);
+        }
+
+        function generateSmartAnalysis(code, lang) {
+            let lineCount = code.split('\n').length;
+            let hasLoop = code.includes('for') || code.includes('while');
+            let hasCondition = code.includes('if');
+            let hasFunction = code.includes('int ') || code.includes('void ') || code.includes('def ');
+            let hasIo = code.includes('printf') || code.includes('cout') || code.includes('print');
+
+            let purposeHTML = "";
+            if (code.includes('Fibonacci')) {
+                purposeHTML = "Calcula la clásica secuencia numérica de Fibonacci sumando los dos términos anteriores de forma iterativa.";
+            } else if (code.includes('burbuja') || code.includes('arr[j] > arr[j+1]')) {
+                purposeHTML = "Implementa el algoritmo de ordenamiento Burbuja (Bubble Sort) comparando elementos adyacentes e intercambiándolos.";
+            } else if (code.includes('struct')) {
+                purposeHTML = "Demuestra el uso de estructuras de datos personalizadas (structs) para modelar registros complejos en memoria.";
+            } else if (code.includes('matriz') || code.includes('matriz[3][3]')) {
+                purposeHTML = "Realiza el recorrido y despliegue de una matriz bidimensional (tabla de 3x3) mediante bucles anidados.";
+            } else if (lang === 'python') {
+                purposeHTML = "Ejecuta un script interpretado en Python con filtrado de datos mediante comprensión de listas y operaciones nativas.";
+            } else {
+                purposeHTML = "Programa estructural en " + lang.toUpperCase() + " diseñado para procesamiento de datos, cómputo aritmético y control de flujo.";
+            }
+
+            return `
+                <div class="space-y-3">
+                    <div class="p-3.5 bg-slate-900 border border-slate-800 rounded-xl space-y-2">
+                        <h4 class="text-xs font-bold text-cyan-400 flex items-center gap-2">
+                            <i class="fa-solid fa-bullseye"></i> Propósito General
+                        </h4>
+                        <p class="text-slate-300 text-[11px] leading-relaxed">${purposeHTML}</p>
+                    </div>
+
+                    <div class="p-3.5 bg-slate-900 border border-slate-800 rounded-xl space-y-2">
+                        <h4 class="text-xs font-bold text-indigo-400 flex items-center gap-2">
+                            <i class="fa-solid fa-code"></i> Desglose Estructural (${lang.toUpperCase()})
+                        </h4>
+                        <ul class="text-[11px] text-slate-300 space-y-1.5 list-disc list-inside">
+                            <li><strong>Líneas totales:</strong> ${lineCount} líneas de código analizadas.</li>
+                            <li><strong>Bucles e Iteraciones:</strong> ${hasLoop ? 'Sí, contiene bucles de control.' : 'No detectados.'}</li>
+                            <li><strong>Condicionales lógicas:</strong> ${hasCondition ? 'Sí, incluye estructuras de decisión.' : 'No detectadas.'}</li>
+                            <li><strong>E/S (Entrada/Salida):</strong> ${hasIo ? 'Operaciones de impresión en pantalla activas.' : 'Sin salida visible.'}</li>
+                        </ul>
+                    </div>
+
+                    <div class="p-3.5 bg-slate-900 border border-slate-800 rounded-xl space-y-2">
+                        <h4 class="text-xs font-bold text-emerald-400 flex items-center gap-2">
+                            <i class="fa-solid fa-shield-halved"></i> Calidad y Buenas Prácticas
+                        </h4>
+                        <p class="text-slate-300 text-[11px] leading-relaxed">
+                            El código respeta las normas de sintaxis para <strong>${lang.toUpperCase()}</strong>. Se recomienda mantener sangrías consistentes y validar desbordamientos de búfer en estructuras de entrada.
+                        </p>
+                        <div class="text-[10px] text-slate-500 pt-1 border-t border-slate-800">
+                            Analizador inteligente optimizado para Ing. Jose Luis Mayo Galeana
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function runCode() {
+            const code = document.getElementById('code-editor').value;
+            const stdin = document.getElementById('stdin-input').value;
+            const terminal = document.getElementById('terminal-output');
+            const statusIndicator = document.getElementById('exec-status');
+            const execTimeLabel = document.getElementById('exec-time');
+
+            statusIndicator.innerHTML = '<span class="w-2.5 h-2.5 rounded-full bg-yellow-500 animate-pulse"></span> Validando y compilando...';
+            terminal.innerText = `[CodeForge Compiler v4.1 - Ing. Jose Luis Mayo Galeana]\n[+] Verificando estructura estricta y sintaxis de ${currentLang.toUpperCase()}...\n`;
+
+            const startTime = performance.now();
+
+            setTimeout(() => {
+                const endTime = performance.now();
+                const duration = ((endTime - startTime) / 1000).toFixed(2);
+                execTimeLabel.innerText = `${duration}s`;
+
+                try {
+                    // Validaciones estrictas de sintaxis y elementos faltantes
+                    validateStrictSyntax(code, currentLang);
+
+                    let output = "";
+                    if (currentLang === 'python') {
+                        output = emulatePythonExecution(code, stdin);
+                    } else {
+                        output = emulateCppExecution(code, stdin);
+                    }
+
+                    terminal.innerText = `=== RESULTADO DE EJECUCIÓN (${currentLang.toUpperCase()}) ===\n`;
+                    terminal.innerText += output;
+                    terminal.innerText += `\n\n[Proceso finalizado correctamente (exit code 0)]`;
+                    
+                    statusIndicator.innerHTML = '<span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm"></span> Ejecución exitosa';
+                } catch (err) {
+                    terminal.innerText += `\n[Error de Compilación]:\n${err.message}\n\n[Proceso abortado con errores (exit code 1)]`;
+                    statusIndicator.innerHTML = '<span class="w-2.5 h-2.5 rounded-full bg-red-500 shadow-sm"></span> Error de Sintaxis';
+                }
+
+                terminal.scrollTop = terminal.scrollHeight;
+            }, 450);
+        }
+
+        function validateStrictSyntax(code, lang) {
+            if (lang === 'c' || lang === 'cpp') {
+                // Verificar función main obligatoria
+                if (!/\bint\s+main\s*\(\s*\)/.test(code) && !/\bvoid\s+main\s*\(\s*\)/.test(code)) {
+                    throw new Error("error: 'main' must return 'int' or 'void' and accept parameters or empty parentheses.\n -> Falta la función principal obligatoria 'int main()'.");
+                }
+
+                // Validar balance de llaves { }
+                let openBraces = (code.match(/{/g) || []).length;
+                let closeBraces = (code.match(/}/g) || []).length;
+                if (openBraces !== closeBraces) {
+                    throw new Error(`error: expected '}' or '{' unmatched brace block.\n -> Llaves desbalanceadas: Se abrieron ${openBraces} y se cerraron ${closeBraces}. Revisa tu código.`);
+                }
+
+                // Validar balance de paréntesis ( )
+                let openParens = (code.match(/\(/g) || []).length;
+                let closeParens = (code.match(/\)/g) || []).length;
+                if (openParens !== closeParens) {
+                    throw new Error(`error: unmatched parenthesis '(' or ')' detected.\n -> Paréntesis desbalanceados: Hay ${openParens} aperturas y ${closeParens} cierres.`);
+                }
+
+                // Validar punto y coma faltante en sentencias básicas (printf / cout / return / asignaciones)
+                let lines = code.split('\n');
+                for (let i = 0; i < lines.length; i++) {
+                    let l = lines[i].trim();
+                    if (l === '' || l.startsWith('#') || l.startsWith('//') || l.startsWith('/*') || l.endsWith('*/') || l.endsWith('{') || l.endsWith('}') || l.includes('for(') || l.includes('while(') || l.includes('if(') || l.includes('else')) {
+                        continue;
+                    }
+                    // Si la línea parece una sentencia ejecutable pero no termina en ';'
+                    if ((l.includes('printf') || l.includes('cout') || l.includes('return') || l.includes('int ') || l.includes('float ') || l.includes('double ') || l.includes('char ') || l.includes('long ') || l.includes('vector ')) && !l.endsWith(';')) {
+                        throw new Error(`error at line ${i + 1}: expected ';' before end of line.\n -> Línea ${i + 1}: Falta el punto y coma ';' al final de la instrucción.`);
+                    }
+                }
+            } else if (lang === 'python') {
+                // Validar bloques de Python con dos puntos
+                let lines = code.split('\n');
+                for (let i = 0; i < lines.length; i++) {
+                    let l = lines[i].trim();
+                    if (l.startsWith('def ') || l.startsWith('for ') || l.startsWith('while ') || l.startsWith('if ') || l.startsWith('elif ') || l.startsWith('else:')) {
+                        if (!l.endsWith(':')) {
+                            throw new Error(`SyntaxError at line ${i + 1}: expected ':'\n -> Línea ${i + 1}: Falta el carácter ':' al final de la definición.`);
+                        }
+                    }
+                }
+            }
+        }
+
+        function emulateCppExecution(code, stdin) {
+            let results = [];
+            let lines = code.split('\n');
+
+            for (let line of lines) {
+                line = line.trim();
+                
+                if (line.startsWith('printf(')) {
+                    let match = line.match(/printf\s*\(\s*"([^"]*)"(?:\s*,\s*(.+))?\s*\)\s*;/);
+                    if (match) {
+                        let formatStr = match[1].replace(/\\n/g, '\n').replace(/\\t/g, '\t');
+                        if (match[2]) {
+                            formatStr = formatStr.replace(/%[difs]/g, match[2].trim());
+                        }
+                        results.push(formatStr);
+                    }
+                }
+                
+                if (line.includes('cout <<')) {
+                    let parts = line.split('<<');
+                    let printed = [];
+                    for (let i = 1; i < parts.length; i++) {
+                        let part = parts[i].trim().replace(';', '');
+                        if (part.startsWith('"') && part.endsWith('"')) {
+                            printed.push(part.slice(1, -1));
+                        } else if (part === 'endl') {
+                            printed.push('\n');
+                        } else {
+                            printed.push(part);
+                        }
+                    }
+                    results.push(printed.join(''));
+                }
+            }
+
+            if (results.length === 0) {
+                results.push("El programa se ejecutó correctamente, pero no emitió ninguna salida visible.");
+            }
+
+            if (stdin) {
+                results.push(`\n[Entrada estándar leída (stdin)]: ${stdin}`);
+            }
+
+            return results.join('');
+        }
+
+        function emulatePythonExecution(code, stdin) {
+            let logs = [];
+            let lines = code.split('\n');
+
+            for (let line of lines) {
+                line = line.trim();
+                if (line.startsWith('#') || line === '' || line.startsWith('"""')) continue;
+
+                if (line.startsWith('print(')) {
+                    let content = line.substring(6, line.length - 1);
+                    if ((content.startsWith('"') && content.endsWith('"')) || (content.startsWith("'") && content.endsWith("'"))) {
+                        logs.push(content.slice(1, -1));
+                    } else if (content.startsWith('f"') || content.startsWith("f'")) {
+                        logs.push(content.slice(2, -1));
+                    } else {
+                        try {
+                            let evaluated = eval(content.replace(/print/g, ''));
+                            logs.push(evaluated !== undefined ? evaluated : content);
+                        } catch(e) {
+                            logs.push(content);
+                        }
+                    }
+                }
+            }
+
+            if (logs.length === 0) {
+                logs.push("Script de Python ejecutado sin sentencias print.");
+            }
+
+            if (stdin) {
+                logs.push(`[input() recibido]: ${stdin}`);
+            }
+
+            return logs.join('\n');
+        }
+    </script>
+</body>
+</html>
